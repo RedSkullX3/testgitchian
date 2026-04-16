@@ -7,7 +7,6 @@
  *
  * Dependencies (installed by the action):
  *   tweetnacl     — Ed25519 sign/verify (same algorithm as PyNaCl)
- *   tweetnacl-util — base64/UTF-8 helpers
  *
  * Environment variables (from GitHub Secrets):
  *   GITCHAIN_PRIVATE_KEY  — 64-char hex Ed25519 private key
@@ -35,6 +34,7 @@ const nodeUrl       = process.env.GITCHAIN_NODE_URL;
 const commitHash    = process.env.GITHUB_SHA;
 const repo          = process.env.GITHUB_REPOSITORY;
 const branch        = process.env.GITHUB_REF_NAME || 'unknown';
+const author        = process.env.GITHUB_ACTOR    || 'unknown';
 const timestamp     = Math.floor(Date.now() / 1000);
 
 if (!privateKeyHex || !nodeUrl || !commitHash || !repo) {
@@ -75,17 +75,18 @@ if (privateKeyBytes.length === 32) {
   process.exit(1);
 }
 
-const authorPubkey = Buffer.from(keyPair.publicKey).toString('hex');
+const ownerPubkey = Buffer.from(keyPair.publicKey).toString('hex');
 
 // ---------------------------------------------------------------------------
 // 4. Build and hash the payload
 // ---------------------------------------------------------------------------
 
 const payloadFields = {
-  author_pubkey: authorPubkey,
+  author:        author,
   branch:        branch,
   commit_hash:   commitHash,
   diff_summary:  diffSummary,
+  owner_pubkey:  ownerPubkey,
   repo:          repo,
   timestamp:     timestamp,
 };
@@ -115,21 +116,22 @@ const signature = Buffer.from(
 // ---------------------------------------------------------------------------
 
 const transaction = {
-  commit_hash:   commitHash,
-  author_pubkey: authorPubkey,
-  repo:          repo,
-  branch:        branch,
-  timestamp:     timestamp,
-  diff_summary:  diffSummary,
-  payload_hash:  payloadHash,
-  signature:     signature,
+  commit_hash:  commitHash,
+  owner_pubkey: ownerPubkey,
+  author:       author,
+  repo:         repo,
+  branch:       branch,
+  timestamp:    timestamp,
+  diff_summary: diffSummary,
+  payload_hash: payloadHash,
+  signature:    signature,
 };
 
 console.log('GitChain transaction:');
 console.log('  commit:', commitHash.slice(0, 12) + '...');
 console.log('  repo:  ', repo);
 console.log('  branch:', branch);
-console.log('  author:', authorPubkey.slice(0, 16) + '...');
+console.log('  author:', author);
 
 // ---------------------------------------------------------------------------
 // 7. POST to node with retry (exponential backoff)
@@ -179,7 +181,7 @@ async function submitWithRetry() {
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const result = await post(endpoint, transaction, attempt);
+      const result = await post(endpoint, transaction);
       if (result.status === 409) {
         console.log('Commit already on-chain — skipping.');
       } else {
