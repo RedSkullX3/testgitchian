@@ -21,7 +21,6 @@
  */
 
 const nacl = require('tweetnacl');
-const { encodeUTF8, decodeUTF8 } = require('tweetnacl-util');
 const { execSync } = require('child_process');
 const https = require('https');
 const http = require('http');
@@ -105,8 +104,10 @@ const payloadHash = crypto.createHash('sha256').update(canonicalPayload).digest(
 // ---------------------------------------------------------------------------
 
 // Sign the UTF-8 bytes of the hex hash string (matches signer.py)
+// Buffer.from(string) encodes as UTF-8 and is a native Uint8Array subclass —
+// avoids tweetnacl-util compatibility issues with checkArrayTypes.
 const signature = Buffer.from(
-  nacl.sign.detached(encodeUTF8(payloadHash), keyPair.secretKey)
+  nacl.sign.detached(Buffer.from(payloadHash), keyPair.secretKey)
 ).toString('hex');
 
 // ---------------------------------------------------------------------------
@@ -136,7 +137,7 @@ console.log('  author:', authorPubkey.slice(0, 16) + '...');
 
 const MAX_RETRIES = 3;
 
-function post(url, body, attempt = 1) {
+function post(url, body) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const transport = parsed.protocol === 'https:' ? https : http;
