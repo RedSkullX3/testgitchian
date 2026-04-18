@@ -48,6 +48,7 @@ if (!privateKeyHex || !nodeUrl || !commitHash || !repo) {
 // ---------------------------------------------------------------------------
 
 let diffSummary = 'unknown';
+let diffHash = '';
 try {
   const stat = execSync('git show --stat HEAD', { encoding: 'utf8' });
   // Extract the summary line: "3 files changed, 42 insertions(+), 7 deletions(-)"
@@ -55,6 +56,12 @@ try {
   if (match) diffSummary = match[1].trim();
 } catch (e) {
   console.warn('Warning: could not get diff summary:', e.message);
+}
+try {
+  const fullDiff = execSync('git show -p HEAD', { encoding: 'utf8' });
+  diffHash = crypto.createHash('sha256').update(fullDiff).digest('hex');
+} catch (e) {
+  console.warn('Warning: could not compute diff hash:', e.message);
 }
 
 // ---------------------------------------------------------------------------
@@ -85,6 +92,7 @@ const payloadFields = {
   author:        author,
   branch:        branch,
   commit_hash:   commitHash,
+  diff_hash:     diffHash,
   diff_summary:  diffSummary,
   owner_pubkey:  ownerPubkey,
   repo:          repo,
@@ -123,6 +131,7 @@ const transaction = {
   branch:       branch,
   timestamp:    timestamp,
   diff_summary: diffSummary,
+  diff_hash:    diffHash,
   payload_hash: payloadHash,
   signature:    signature,
 };
@@ -205,4 +214,3 @@ async function submitWithRetry() {
 }
 
 submitWithRetry();
-

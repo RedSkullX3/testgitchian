@@ -18,7 +18,7 @@ jobs:
           node-version: '20'
 
       - name: Install GitChain dependencies
-        run: npm install tweetnacl tweetnacl-util
+        run: npm install tweetnacl
         working-directory: gitchain/github-action
 
       - name: Log commit to GitChain
