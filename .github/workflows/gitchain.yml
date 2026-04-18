@@ -32,5 +32,8 @@ jobs:
           GITHUB_REPOSITORY:    ${{ github.repository }}
           GITHUB_REF_NAME:      ${{ github.ref_name }}
       
-      - name: Debug diff hash
-        run: git show -p HEAD | sha256sum
+      - name: Debug git config
+        run: |
+          git config --list --show-origin
+          git show -p HEAD | head -30
+
